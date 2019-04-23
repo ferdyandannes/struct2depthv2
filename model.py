@@ -821,6 +821,7 @@ class Model(object):
 
   def build_egomotion_test_graph(self):
     """Builds egomotion model reading from placeholders."""
+    print('EGOMOTION PROCESS')
     input_image_stack = tf.placeholder(
         tf.float32,
         [1, self.img_height, self.img_width, self.seq_length * 3],
@@ -857,10 +858,44 @@ class Model(object):
           seq_length=self.seq_length,
           weight_reg=self.weight_reg)
 
+      # sess = tf.Session()
+      # with sess.as_default():
+      #   tensor_new = sess.run(est_egomotion)
+      #   print(tensor_new)
+
+      # with tf.Session() as sess:
+      #   init = tf.global_variables_initializer()
+      #   sess.run(init)
+      #   print(est_egomotion.eval())
+      print('oke oce')
+      print(est_egomotion.get_shape()) # Call the shape of the tensor
+
+      # x = tf.Print(est_egomotion, [est_egomotion])
+      # sess = tf.InteractiveSession()
+      # sess.run(x)
+
+      # aselole = tf.Print(est_egomotion, [est_egomotion], "ehehhe")
+      # sess = tf.Session()
+      # print(sess.run(aselole))
+
+      print('Flag 1')
       print('est_egomotionssss = ', est_egomotion)
-      
+
+    print('Flag 2')
+    print(est_egomotion)
+
+    # sess = tf.Session()
+    # with sess.as_default():
+    #   tensor_new = sess.run(egomotion_prediction)
+    #   print(tensor_new)
+
     self.input_image_stack = input_image_stack
     self.est_egomotion = est_egomotion
+    print('est_egomotionssss = ', self.est_egomotion)
+
+    # aselolee = tf.Print(est_egomotion, [est_egomotion], "ehehhe")
+    # sesss = tf.Session()
+    # print(sesss.run(aselolee))
 
   def build_objectmotion_test_graph(self):
     """Builds egomotion model reading from placeholders."""
@@ -890,8 +925,10 @@ class Model(object):
     return sess.run(self.est_depth, feed_dict={self.input_image: inputs})
 
   def inference_egomotion(self, inputs, sess):
+    print('kumssss')
     return sess.run(
         self.est_egomotion, feed_dict={self.input_image_stack: inputs})
+
 
   def inference_objectmotion(self, inputs, sess):
     return sess.run(

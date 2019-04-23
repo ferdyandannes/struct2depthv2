@@ -43,6 +43,7 @@ import fnmatch
 import tensorflow as tf
 import nets
 import util
+import cv2
 
 gfile = tf.gfile
 
@@ -130,6 +131,22 @@ FLAGS = flags.FLAGS
 flags.mark_flag_as_required('output_dir')
 flags.mark_flag_as_required('model_ckpt')
 
+scaling = 4
+scale = 10
+
+ego_prev_rotate1 = 0
+ego_prev_rotate2 = 0
+ego_prev_rotate3 = 0
+
+ego_baru_x = 0
+ego_baru_y = 0
+
+write_x_ego = 0
+write_y_ego = 0
+
+traj_new = np.zeros((1000,1280,3), dtype=np.uint8)
+traj_viz = np.zeros((1000,1280,3), dtype=np.uint8)
+
 
 def _run_inference(output_dir=None,
                    file_extension='png',
@@ -162,6 +179,9 @@ def _run_inference(output_dir=None,
                                 imagenet_norm=imagenet_norm,
                                 use_skip=use_skip,
                                 joint_encoder=joint_encoder)
+
+  global ego_prev_rotate1, ego_prev_rotate2, ego_prev_rotate3, ego_baru_x, ego_baru_y, write_x_ego, write_y_ego
+
   vars_to_restore = util.get_vars_to_save_and_restore(model_ckpt)
   saver = tf.train.Saver(vars_to_restore)
   sv = tf.train.Supervisor(logdir='/tmp/', saver=None)
@@ -291,12 +311,56 @@ def _run_inference(output_dir=None,
             input_image_stack = mask_image_stack(input_image_stack,
                                                  input_seg_seq)
 
+          # print('')
+          # print('wenaknoooooooooooooooooooooooooo')
+          # print('')
+
           est_egomotion = np.squeeze(inference_model.inference_egomotion(
               input_image_stack, sess))
 
-          # print('')
-          # print('est_egomotion', est_egomotion)
-          # print('')
+          #####################################################
+
+          print('')
+          print('est_egomotion1 = ', est_egomotion)
+          print('est_egomotion2 = ', est_egomotion[0])
+          print('est_egomotion3 = ', est_egomotion[0][0])
+          print('est_egomotion4 = ', est_egomotion[0][5])
+          #a
+
+          ego_x_prev = float(est_egomotion[0][0])*scaling
+          ego_y_prev = float(est_egomotion[0][1])*scaling
+          ego_z_prev = float(est_egomotion[0][2])*scaling
+
+          ego_rot1_prev = float(est_egomotion[0][3])
+          ego_rot2_prev = float(est_egomotion[0][4])
+          ego_rot3_prev = float(est_egomotion[0][5])
+
+          ego_prev_rotate1 = ego_prev_rotate1 + ego_rot1_prev
+          ego_prev_rotate2 = ego_prev_rotate2 + ego_rot2_prev
+          ego_prev_rotate3 = ego_prev_rotate3 + ego_rot3_prev
+
+          ego_coorY_prev = (((np.cos(ego_prev_rotate2)*np.cos(ego_prev_rotate3)) - (np.sin(ego_prev_rotate1)*np.sin(ego_prev_rotate2)*np.sin(ego_prev_rotate3)))*ego_x_prev) - (np.cos(ego_prev_rotate1)*np.sin(ego_prev_rotate3)*ego_y_prev)+ (((np.sin(ego_prev_rotate2)*np.cos(ego_prev_rotate3))+(np.sin(ego_prev_rotate1)*np.cos(ego_prev_rotate2)*np.sin(ego_prev_rotate3)))*ego_z_prev)
+          ego_coorX_prev = ((np.cos(ego_prev_rotate1)*np.sin(ego_prev_rotate2))*ego_x_prev) + (np.sin(ego_prev_rotate1)*ego_y_prev) + ((np.cos(ego_prev_rotate1)*np.cos(ego_prev_rotate2))*ego_z_prev)
+
+          ego_prev_x, ego_prev_y = ego_coorY_prev*scale, -ego_coorX_prev*scale
+
+          ego_baru_x = ego_baru_x + (-ego_prev_x*1.5)
+          ego_baru_y = ego_baru_y + (-ego_prev_y*1.5)
+          
+          write_x_ego = 640 - ego_baru_x
+          write_y_ego = 500 - ego_baru_y
+
+          cv2.circle(traj_new, (int(write_x_ego), int(write_y_ego)) ,1, (0,255,0), 2)
+
+          traj_viz = traj_new.copy()
+
+          cv2.rectangle(traj_viz, (int(write_x_ego)-7,int(write_y_ego)-14), (int(write_x_ego)+7,int(write_y_ego)+14), (0,255,0), 2)
+
+          cv2.imshow('ngaplo', traj_viz)
+          cv2.waitKey(1)
+
+
+          #######################################################
 
           est_objectmotion = np.squeeze(inference_model.inference_objectmotion(
               input_image_stack, sess))
