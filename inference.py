@@ -147,6 +147,13 @@ write_y_ego = 0
 traj_new = np.zeros((1000,1280,3), dtype=np.uint8)
 traj_viz = np.zeros((1000,1280,3), dtype=np.uint8)
 
+img_array1 = []
+img_array2 = []
+img_array3 = []
+
+max_width = 0
+total_height = 0
+image_con = []
 
 def _run_inference(output_dir=None,
                    file_extension='png',
@@ -180,7 +187,7 @@ def _run_inference(output_dir=None,
                                 use_skip=use_skip,
                                 joint_encoder=joint_encoder)
 
-  global ego_prev_rotate1, ego_prev_rotate2, ego_prev_rotate3, ego_baru_x, ego_baru_y, write_x_ego, write_y_ego
+  global ego_prev_rotate1, ego_prev_rotate2, ego_prev_rotate3, ego_baru_x, ego_baru_y, write_x_ego, write_y_ego, img_array1, img_array2, max_width, image_con, total_height, img_array3
 
   vars_to_restore = util.get_vars_to_save_and_restore(model_ckpt)
   saver = tf.train.Saver(vars_to_restore)
@@ -348,14 +355,57 @@ def _run_inference(output_dir=None,
           ego_baru_y = ego_baru_y + (-ego_prev_y*1.5)
           
           write_x_ego = 640 - ego_baru_x
-          write_y_ego = 500 - ego_baru_y
+          write_y_ego = 900 - ego_baru_y
 
           cv2.circle(traj_new, (int(write_x_ego), int(write_y_ego)) ,1, (0,255,0), 2)
+          cv2.circle(traj_new, (int(write_x_ego-14), int(write_y_ego+3)) ,1, (255,255,255), 3)
+          cv2.circle(traj_new, (int(write_x_ego+14), int(write_y_ego+3)) ,1, (255,255,255), 3)
 
           traj_viz = traj_new.copy()
 
           cv2.rectangle(traj_viz, (int(write_x_ego)-7,int(write_y_ego)-14), (int(write_x_ego)+7,int(write_y_ego)+14), (0,255,0), 2)
 
+          # Read image
+          print('im_files[i] = ', im_files[i])
+          imgg = cv2.imread(im_files[i])
+          img_array1.append(imgg)
+          height1, width1, layers1 = imgg.shape
+          size1 = (width1,height1)
+
+          img_array2.append(traj_viz)
+          height2, width2, layers2 = traj_viz.shape
+          size2 = (width2,height2)
+
+          image_con = []
+          max_width = 0
+          total_height = 0
+
+          image_con.append(traj_viz)
+          if image_con[-1].shape[1] > max_width:
+              max_width = image_con[-1].shape[1]
+          total_height += image_con[-1].shape[0]
+
+          image_con.append(imgg)
+          if image_con[-1].shape[1] > max_width:
+              max_width = image_con[-1].shape[1]
+          total_height += image_con[-1].shape[0]
+
+          final_image = np.zeros((total_height,max_width,3),dtype=np.uint8)
+
+          current_y = 0 # keep track of where your current image was last placed in the y coordinate
+          for image in image_con:
+            # add an image to the final array and increment the y coordinate
+            final_image[current_y:image.shape[0]+current_y,:image.shape[1],:] = image
+            current_y += image.shape[0]
+
+          img_array3.append(final_image)
+          height3, width3, layers3 = final_image.shape
+          size3 = (width3,height3)
+
+          #cv2.imshow('moms', final_image)
+          #cv2.imwrite("a.jpg", final_image)
+
+          #cv2.imshow('img', imgg)
           cv2.imshow('ngaplo', traj_viz)
           cv2.waitKey(1)
 
@@ -384,6 +434,23 @@ def _run_inference(output_dir=None,
 
         if current_output_handle2 is not None:
           current_output_handle2.close()
+
+        ### SAVE IMAGE TO VIDEO
+        #out1 = cv2.VideoWriter('scene1.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, size1)
+        #out2 = cv2.VideoWriter('result1.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, size2)
+        out3 = cv2.VideoWriter('total1.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, size3)
+
+        # for i in range(len(img_array1)):
+        #   out1.write(img_array1[i])
+        # out1.release()
+
+        # for j in range(len(img_array2)):
+        #   out2.write(img_array2[j])
+        # out2.release()
+
+        for j in range(len(img_array3)):
+          out3.write(img_array3[j])
+        out3.release()
 
       elif inference_mode == INFERENCE_MODE_TRIPLETS:
         print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
